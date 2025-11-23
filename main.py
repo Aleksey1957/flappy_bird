@@ -1,3 +1,5 @@
+import json
+
 import pygame as pg
 import random
 
@@ -111,6 +113,9 @@ class Game:
         PIPE_SPEED = 6
         GRAVITY = 1
 
+        with open('save_records.json', 'r', encoding='utf-8') as f:
+            self.record = json.load(f)
+
         self.player = Player()
 
         self.all_sprites = pg.sprite.Group()
@@ -129,6 +134,13 @@ class Game:
 
         self.pipes.add(pipe_top, pipe_bottom)
         self.all_sprites.add(pipe_top, pipe_bottom)
+
+    def run(self):
+        while self.running:
+            self.update()
+            self.event()
+            self.draw()
+            self.clock.tick(FPS)
 
     def event(self):
         for event in pg.event.get():
@@ -155,27 +167,33 @@ class Game:
     def update(self):
         if not self.game_over:
             self.all_sprites.update()
-
             self.update_speed()
 
             if pg.time.get_ticks() - self.pipe_timer > PIPE_SPAWN_TIME:
                 self.spawn_pipes()
                 self.pipe_timer = pg.time.get_ticks()
 
+            if self.player.rect.bottom >= SCREEN_HEIGHT:
+                self.game_over = True
+
             if pg.sprite.spritecollide(self.player, self.pipes, False):
                 self.game_over = True
                 self.player.alive = False
 
+
     def draw(self):
         self.screen.blit(self.background, (0, 0))
         self.all_sprites.draw(self.screen)
-
-        time = (pg.time.get_ticks() - self.start_time) // 1000
-        time_text = font.render(f"Время: {time}", True, (255, 255, 255))
+        if not self.game_over:
+            self.time = (pg.time.get_ticks() - self.start_time) // 1000
+        time_text = font.render(f"Время: {self.time}", True, (255, 255, 255))
         self.screen.blit(time_text, (20, 20))
 
-        if self.game_over:
-            text = font.render("Вы проиграли", True, (255, 0, 0))
+        if self.time > self.record["record"]:
+            self.record["record"] = self.time
+            with open('save_records.json', "w", encoding='utf-8') as f:
+                json.dump(self.record, f, ensure_ascii=False)
+            text = font.render(f"Вы проиграли. Ваше время жизни: {self.time}", True, (255, 0, 0))
             self.screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, 200))
 
         pg.display.flip()
@@ -184,3 +202,4 @@ class Game:
 
 if __name__ == "__main__":
     game = Game()
+    game.run()
